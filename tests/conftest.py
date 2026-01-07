@@ -66,3 +66,21 @@ def random_ingredients(ingredient_ids: List[str]) -> List[str]:
     """Возвращает список из первых двух доступных ID ингредиентов"""
     assert len(ingredient_ids) >= 2, "API вернуло недостаточное количество идентификаторов ингредиентов для тестов"
     return ingredient_ids[:2]
+
+
+@pytest.fixture
+def user_registrar(api_client: StellarBurgersApi) -> Callable[[Dict[str, str]], object]:
+    """Регистрирует пользователей и удаляет их после теста"""
+    tokens: List[str] = []
+
+    def _register(payload: Dict[str, str]):
+        response = api_client.register_user(payload)
+        token = response.json().get("accessToken")
+        if token:
+            tokens.append(token)
+        return response
+
+    yield _register
+
+    for token in tokens:
+        api_client.delete_user(token)

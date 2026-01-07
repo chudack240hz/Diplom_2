@@ -11,43 +11,33 @@ class TestAuth:
     @allure.epic("Управление пользователями")
     @allure.feature("Регистрация")
     @allure.story("Создание уникального пользователя")
-    def test_create_unique_user(self, api_client: StellarBurgersApi, unique_user_data):
+    def test_create_unique_user(self, user_registrar, unique_user_data):
         """Проверка успешной регистрации нового пользователя"""
         payload = unique_user_data()
         with allure.step("Регистрация нового пользователя"):
-            response = api_client.register_user(payload)
+            response = user_registrar(payload)
         body = response.json()
-        token = body.get("accessToken")
-        try:
-            assert response.status_code == 200
-            assert body.get("success") is True
-            assert body.get("user", {}).get("email") == payload["email"]
-            assert token and token.startswith("Bearer ")
-        finally:
-            if token:
-                api_client.delete_user(token)
+        assert response.status_code == 200
+        assert body.get("success") is True
+        assert body.get("user", {}).get("email") == payload["email"]
+        assert body.get("accessToken") and body["accessToken"].startswith("Bearer ")
 
 
     @allure.epic("Управление пользователями")
     @allure.feature("Регистрация")
     @allure.story("Попытка создания дубликата пользователя")
-    def test_create_registered_user_fails(self, api_client: StellarBurgersApi, unique_user_data):
+    def test_create_registered_user_fails(self, api_client: StellarBurgersApi, user_registrar, unique_user_data):
         """Проверка обработки попытки регистрации существующего пользователя
         
         Ожидается ошибка с кодом 403 и соответствующим сообщением
         """
         payload = unique_user_data()
-        initial_response = api_client.register_user(payload)
+        initial_response = user_registrar(payload)
         initial_response.raise_for_status()
-        initial_token = initial_response.json().get("accessToken")
-        try:
-            with allure.step("Попытка повторной регистрации с теми же данными"):
-                duplicate_response = api_client.register_user(payload)
-            assert duplicate_response.status_code == 403
-            assert duplicate_response.json()["message"] == "User already exists"
-        finally:
-            if initial_token:
-                api_client.delete_user(initial_token)
+        with allure.step("Попытка повторной регистрации с теми же данными"):
+            duplicate_response = api_client.register_user(payload)
+        assert duplicate_response.status_code == 403
+        assert duplicate_response.json()["message"] == "User already exists"
 
 
     @allure.epic("Управление пользователями")
